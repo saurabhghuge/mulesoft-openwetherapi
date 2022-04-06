@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="169b891b-0e60-4cab-b34a-5d06aafe7367" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="openwetherapiFlow" doc:id="1779148f-3c0b-4ae2-9852-ba56e455e93b" >
+		<http:listener doc:name="Listener" doc:id="ea185317-378f-4c3f-a5cc-d7b6b483fa91" config-ref="HTTP_Listener_config" path="/citywether"/>
+		<set-variable value="#[payload.cityName]" doc:name="city" doc:id="cf8accde-c993-4175-b5ef-e986e675fad7" variableName="city"/>
+		<logger level="INFO" doc:name="Logger" doc:id="30497ae8-c0d3-42f0-8ee7-6bfdb5b1e758" message='#[vars.city ++ "printed"]'/>
+		<http:request method="POST" doc:name="Request" doc:id="55b35e92-2073-4503-9b9f-f797918fb0c0" url="https://api.openweathermap.org/data/2.5/weather">
+			<http:query-params ><![CDATA[#[output application/json
+---
+{
+	q : vars.city,
+	appid : "70c9b4b009163fa273b5b27c76f2b6f2"
+}]]]></http:query-params>
+		</http:request>
+		<choice doc:name="Choice" doc:id="ab471724-7d31-45cc-9ad1-b08584d86fb5" >
+			<when expression="#[(payload.main.temp_min - 273.15 ) &gt; 50]">
+				<ee:transform doc:name="Transform Message" doc:id="04e0d247-bd31-4000-83d3-11429c7a6ef9">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"min tem" : payload.main.temp_min - 273.15 ++ " celcius",
+	"temp_max" : payload.main.temp_max - 273.15 ++ " celcius",
+	"lat-lon" : payload.coord,
+	"wether description ": payload.weather.description,
+	"data" : payload
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="9b2a85ef-2c82-4594-a050-9d2e2125962f">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message " : "temp is less than 50"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</flow>
+</mule>
